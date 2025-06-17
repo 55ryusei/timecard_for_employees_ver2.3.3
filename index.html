@@ -1565,8 +1565,10 @@
             input.value = name;
             hideDropdown(dropdownId);
             
-            // iPad対応：キーボードも閉じる
-            input.blur();
+            // 明確な選択の場合のみキーボードを閉じる
+            setTimeout(() => {
+              input.blur();
+            }, 100);
     
             if (inputId === 'empName') {
               // 出勤・退勤フィールドの場合：選択した名前でボタン状態を更新
@@ -1607,6 +1609,15 @@
       }
       
       dropdown.classList.add('show');
+      
+      // プルダウンメニュー自体のタッチイベントも処理（キーボードが閉じないように）
+      dropdown.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+      
+      dropdown.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+      });
     }
 
     // ドロップダウンメニューを非表示
@@ -2314,20 +2325,23 @@
       const hideDropdownsOnOutsideTouch = (e) => {
         if (isDropdownActionInProgress) return;
         
-        if (!e.target.closest('.input-wrapper')) {
-          isDropdownActionInProgress = true;
-          hideAllDropdowns();
-          
-          // iPad対応：キーボードも閉じる
-          const activeElement = document.activeElement;
-          if (activeElement && (activeElement.id === 'empName' || activeElement.id === 'searchEmpName')) {
-            activeElement.blur();
-          }
-          
-          setTimeout(() => {
-            isDropdownActionInProgress = false;
-          }, 300);
+        // プルダウンメニューやドロップダウンアイテムをタップした場合は何もしない
+        if (e.target.closest('.input-wrapper') || e.target.closest('.dropdown-menu') || e.target.closest('.dropdown-item')) {
+          return;
         }
+        
+        isDropdownActionInProgress = true;
+        hideAllDropdowns();
+        
+        // iPad対応：外部をタップした時のみキーボードも閉じる
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.id === 'empName' || activeElement.id === 'searchEmpName')) {
+          activeElement.blur();
+        }
+        
+        setTimeout(() => {
+          isDropdownActionInProgress = false;
+        }, 300);
       };
       
       // タッチデバイス用（iPadなど）
