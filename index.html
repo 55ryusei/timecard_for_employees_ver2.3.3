@@ -1564,11 +1564,6 @@
             isDropdownActionInProgress = true;
             input.value = name;
             hideDropdown(dropdownId);
-            
-            // 明確な選択の場合のみキーボードを閉じる
-            setTimeout(() => {
-              input.blur();
-            }, 100);
     
             if (inputId === 'empName') {
               // 出勤・退勤フィールドの場合：選択した名前でボタン状態を更新
@@ -1582,10 +1577,11 @@
               updateClearButton('searchEmpName', 'clearSearchBtn');
             }
             
-            // フラグをリセット
+            // 選択完了後、少し遅延してキーボードを閉じる
             setTimeout(() => {
+              input.blur();
               isDropdownActionInProgress = false;
-            }, 300);
+            }, 200);
           };
 
           // iPad対応：touchend のみ使用（clickとの重複を避ける）
@@ -1610,14 +1606,18 @@
       
       dropdown.classList.add('show');
       
-      // プルダウンメニュー自体のタッチイベントも処理（キーボードが閉じないように）
+      // プルダウンメニュー全体のタッチイベント処理を強化
       dropdown.addEventListener('touchstart', (e) => {
         e.stopPropagation();
-      }, { passive: true });
+      }, { passive: false });
+      
+      dropdown.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
+      }, { passive: false });
       
       dropdown.addEventListener('touchend', (e) => {
         e.stopPropagation();
-      });
+      }, { passive: false });
     }
 
     // ドロップダウンメニューを非表示
@@ -2321,31 +2321,34 @@
         searchInput.focus();
       });
       
-      // 外部クリック・タッチでドロップダウンとキーボードを閉じる（iPad対応改善）
+      // 外部クリック・タッチでドロップダウンを閉じる（キーボードは維持）
       const hideDropdownsOnOutsideTouch = (e) => {
         if (isDropdownActionInProgress) return;
         
-        // プルダウンメニューやドロップダウンアイテムをタップした場合は何もしない
-        if (e.target.closest('.input-wrapper') || e.target.closest('.dropdown-menu') || e.target.closest('.dropdown-item')) {
-          return;
+        // プルダウン関連要素のチェックを強化
+        const isDropdownRelated = e.target.closest('.input-wrapper') || 
+                                 e.target.closest('.dropdown-menu') || 
+                                 e.target.classList.contains('dropdown-item') ||
+                                 e.target.classList.contains('dropdown-empty');
+        
+        if (!isDropdownRelated) {
+          isDropdownActionInProgress = true;
+          hideAllDropdowns();
+          
+          // プルダウン操作以外の場合のみキーボードを閉じる
+          const activeElement = document.activeElement;
+          if (activeElement && (activeElement.id === 'empName' || activeElement.id === 'searchEmpName')) {
+            activeElement.blur();
+          }
+          
+          setTimeout(() => {
+            isDropdownActionInProgress = false;
+          }, 300);
         }
-        
-        isDropdownActionInProgress = true;
-        hideAllDropdowns();
-        
-        // iPad対応：外部をタップした時のみキーボードも閉じる
-        const activeElement = document.activeElement;
-        if (activeElement && (activeElement.id === 'empName' || activeElement.id === 'searchEmpName')) {
-          activeElement.blur();
-        }
-        
-        setTimeout(() => {
-          isDropdownActionInProgress = false;
-        }, 300);
       };
       
-      // タッチデバイス用（iPadなど）
-      document.addEventListener('touchstart', hideDropdownsOnOutsideTouch, { passive: true });
+      // タッチデバイス用（iPadなど）- より確実なイベント制御
+      document.addEventListener('touchstart', hideDropdownsOnOutsideTouch, { passive: false });
       
       // デスクトップ用（タッチデバイスでない場合のみ）
       if (!('ontouchstart' in window)) {
